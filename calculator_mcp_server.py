@@ -1,6 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 from typing import Dict, List, Union
 import math
+import operator
 
 # MCP 서버 인스턴스 생성
 mcp = FastMCP("Calculator Service")
@@ -24,6 +25,15 @@ async def calculate(expression: str) -> Dict[str, Union[str, float]]:
     try:
         # 안전한 계산을 위해 제한된 네임스페이스 사용
         safe_dict = {
+            # 기본 산술 연산자
+            '+': operator.add,
+            '-': operator.sub,
+            '*': operator.mul,
+            '/': operator.truediv,
+            '**': operator.pow,
+            '%': operator.mod,
+            
+            # 수학 함수
             'abs': abs,
             'max': max,
             'min': min,
@@ -31,15 +41,45 @@ async def calculate(expression: str) -> Dict[str, Union[str, float]]:
             'round': round,
             'sum': sum,
             'sqrt': math.sqrt,
-            'pi': math.pi,
-            'e': math.e,
+            
+            # 삼각함수
             'sin': math.sin,
             'cos': math.cos,
-            'tan': math.tan
+            'tan': math.tan,
+            
+            # 상수
+            'pi': math.pi,
+            'e': math.e,
+            
+            # 괄호와 숫자를 허용하기 위한 추가 설정
+            '(': '(',
+            ')': ')',
+            '.': '.',
         }
         
-        # 표현식 계산
-        result = eval(expression, {"__builtins__": {}}, safe_dict)
+        # 표현식을 파싱하여 안전하게 계산
+        # 숫자와 연산자를 분리하여 처리
+        tokens = []
+        current_token = ''
+        
+        for char in expression:
+            if char.isspace():
+                if current_token:
+                    tokens.append(current_token)
+                    current_token = ''
+                continue
+            elif char in '+-*/%()':
+                if current_token:
+                    tokens.append(current_token)
+                    current_token = ''
+                tokens.append(char)
+            else:
+                current_token += char
+        if current_token:
+            tokens.append(current_token)
+        
+        # 토큰을 평가하여 계산
+        result = eval(' '.join(tokens), {"__builtins__": None}, safe_dict)
         
         # 계산 기록 저장
         calc_entry = {

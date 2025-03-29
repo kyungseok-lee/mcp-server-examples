@@ -1,16 +1,11 @@
 {
   "mcpServers": {
     "calculator": {
-      "command": "npx",
+      "command": "mcp",
       "args": [
-        "-y",
-        "@smithery/cli@latest",
         "run",
-        "calculator_mcp_server.py",
-        "--key",
-        "1ba06294-1866-4134-8793-89c135ea367a"
-      ],
-      "cwd": "/Users/kyungseok.lee/workspace-git/mcp-server-examples"
+        "[YOUR_PATH]/mcp-server-examples/calculator_mcp_server.py"
+      ]
     }
   }
 }

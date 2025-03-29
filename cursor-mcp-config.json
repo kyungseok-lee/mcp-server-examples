@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "weather-server": {
+      "command": "python",
+      "args": [
+        "weather_mcp_server.py"
+      ],
+      "cwd": "/Users/kyungseok.lee/workspace-git/mcp-server-examples"
+    }
+  }
+}

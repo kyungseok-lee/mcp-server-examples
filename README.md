@@ -1,111 +1,79 @@
-# MCP 계산기 서버 예제
+# MCP Server Examples
 
-이 프로젝트는 [Model Context Protocol (MCP)](https://modelcontextprotocol.io)을 사용하여 구현된 계산기 서버 예제입니다.
+이 프로젝트는 Model Context Protocol (MCP) 서버 예제들을 포함하고 있습니다. BMI 계산과 날씨 정보 조회 기능을 제공하는 MCP 서버를 구현합니다.
 
-## 기능
+## 프로젝트 구조
 
-### 리소스 (Resources)
-- `calculator://history`: 최근 계산 기록을 리소스로 제공
+```
+mcp-server-examples/
+├── .venv/              # Python 가상환경
+├── server.py           # MCP 서버 구현 (BMI 계산기, 날씨 정보 조회)
+└── config.json         # 서버 설정 파일
+```
 
-### 도구 (Tools)
-- `calculate`: 수학 표현식 계산
-  - 사칙연산 (+, -, *, /)
-  - 수학 함수 (sqrt, pow, abs, sin, cos, tan)
-  - 수학 상수 (pi, e)
-- `solve_equation`: 1차/2차 방정식 해결
-  - 1차 방정식: ax + b = 0
-  - 2차 방정식: ax² + bx + c = 0
+## 제공하는 도구들
 
-### 프롬프트 (Prompts)
-- `calculator_prompt`: 계산기 사용을 위한 프롬프트 템플릿
-  - 기본 계산기 사용법
-  - 방정식 계산기 사용법
+1. **BMI 계산기**
+   - 키(m)와 몸무게(kg)를 입력받아 BMI 지수를 계산
+   - `calculate_bmi` 도구 사용
 
-## 설치 및 실행
+2. **날씨 정보 조회**
+   - 도시 이름을 입력받아 해당 도시의 날씨 정보를 조회
+   - `fetch_weather` 도구 사용
 
-1. 의존성 설치:
+## 프로젝트 설정 및 실행 방법
+
+### 1. Python 가상환경 생성
+
 ```bash
-pip install -r requirements.txt
+# venv 모듈을 사용하여 가상환경 생성
+python -m venv .venv
+
+# 가상환경 활성화
+# Windows의 경우:
+.venv\Scripts\activate
+# macOS/Linux의 경우:
+source .venv/bin/activate
 ```
 
-2. 서버 실행:
+### 2. 필요한 패키지 설치
+
 ```bash
-python calculator_mcp_server.py
+# MCP 패키지 설치 (CLI 도구 포함)
+pip install "mcp[cli]"
+
+# HTTP 클라이언트 라이브러리 설치 (날씨 API 호출용)
+pip install httpx
 ```
 
-## Cursor에서 사용하기
+### 3. 서버 실행
 
-1. Cursor의 MCP 설정 파일 위치에 `cursor-mcp-config.json` 파일을 복사하거나 내용을 추가:
-   - macOS: `~/.cursor/mcp.json`
-   - Windows: `%APPDATA%\Cursor\mcp.json`
-   - Linux: `~/.config/cursor/mcp.json`
+개발 모드로 서버를 실행하거나 Claude Desktop에 설치할 수 있습니다:
 
-2. 설정 내용:
-```json
-{
-  "mcpServers": {
-    "calculator": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@smithery/cli@latest",
-        "run",
-        "calculator_mcp_server.py",
-        "--key",
-        "your_key_here"
-      ],
-      "cwd": "/path/to/mcp-server-examples"
-    }
-  }
-}
+```bash
+# 개발 모드로 서버 실행
+mcp dev server.py
+
+# Claude Desktop에 서버 설치
+mcp install server.py
 ```
 
-## 사용 예시
+## 의존성 패키지
 
-1. 기본 계산:
-```python
-# 2 + 2 계산
-result = await session.call_tool(
-    "calculate",
-    arguments={"expression": "2 + 2"}
-)
-# 결과: {"result": 4, "expression": "2 + 2", "success": true}
+- `mcp`: Model Context Protocol 구현을 위한 핵심 패키지
+- `httpx`: 비동기 HTTP 클라이언트 라이브러리 (날씨 API 호출용)
 
-# 제곱근 계산
-result = await session.call_tool(
-    "calculate",
-    arguments={"expression": "sqrt(16)"}
-)
-# 결과: {"result": 4.0, "expression": "sqrt(16)", "success": true}
-```
+## 서버 사용 방법
 
-2. 방정식 해결:
-```python
-# 1차 방정식: 2x + 3 = 0
-result = await session.call_tool(
-    "solve_equation",
-    arguments={"a": 2, "b": 3}
-)
-# 결과: {"solution": [-1.5], "equation_type": "linear", "success": true}
+서버가 실행되면 Claude Desktop에서 다음과 같은 도구들을 사용할 수 있습니다:
 
-# 2차 방정식: x² - 5x + 6 = 0
-result = await session.call_tool(
-    "solve_equation",
-    arguments={"a": 1, "b": -5, "c": 6}
-)
-# 결과: {"solution": [3, 2], "equation_type": "quadratic", "success": true}
-```
+1. BMI 계산하기:
+   - 키(미터)와 몸무게(킬로그램)를 입력하면 BMI 지수를 계산해줍니다
+   - 예: 키 1.79m, 몸무게 80kg → BMI 25.0
 
-3. 계산 기록 조회:
-```python
-history, _ = await session.read_resource("calculator://history")
-```
+2. 날씨 정보 조회하기:
+   - 도시 이름을 입력하면 해당 도시의 현재 날씨 정보를 조회합니다
+   - API를 통해 실시간 날씨 데이터를 제공합니다
 
-## 라이선스
 
-이 프로젝트는 MIT 라이선스를 따릅니다.
 
-## 참고 자료
-
-- [Model Context Protocol 문서](https://modelcontextprotocol.io)
-- [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)

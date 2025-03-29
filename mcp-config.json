@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "bmi-calculator": {
+      "command": "mcp",
+      "args": [
+        "run",
+        "/Users/kyungseok.lee/workspace-git/mcp-server-examples/server.py"
+      ]
+    }
+  }
+}

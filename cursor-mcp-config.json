@@ -1,14 +1,16 @@
 {
   "mcpServers": {
-    "weather-service": {
-      "command": "python",
+    "calculator": {
+      "command": "npx",
       "args": [
-        "weather_mcp_server.py"
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "calculator_mcp_server.py",
+        "--key",
+        "1ba06294-1866-4134-8793-89c135ea367a"
       ],
-      "cwd": "/Users/kyungseok.lee/workspace-git/mcp-server-examples",
-      "env": {
-        "OPENWEATHER_API_KEY": "${OPENWEATHER_API_KEY}"
-      }
+      "cwd": "/Users/kyungseok.lee/workspace-git/mcp-server-examples"
     }
   }
 }

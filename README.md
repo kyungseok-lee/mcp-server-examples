@@ -2,20 +2,28 @@
 
 이 프로젝트는 [Model Context Protocol (MCP)](https://modelcontextprotocol.io) 서버의 구현 예제를 포함하고 있습니다.
 
-## 날씨 정보 MCP 서버
+## 계산기 MCP 서버
 
-이 예제는 OpenWeatherMap API를 사용하여 날씨 정보를 제공하는 MCP 서버를 구현합니다.
+이 예제는 수학 계산과 방정식 해결을 제공하는 MCP 서버를 구현합니다.
 
 ### 기능
 
 - **리소스 (Resources)**
-  - `weather://{city}`: 특정 도시의 날씨 정보를 리소스로 제공
+  - `calculator://history`: 최근 계산 기록을 리소스로 제공
 
 - **도구 (Tools)**
-  - `get_current_weather`: 도시 이름과 국가 코드를 받아 현재 날씨 정보를 반환
+  - `calculate`: 수학 표현식 계산
+    - 사칙연산
+    - 수학 함수 (sqrt, pow, abs, sin, cos, tan)
+    - 수학 상수 (pi, e)
+  - `solve_equation`: 1차/2차 방정식 해결
+    - 1차 방정식: ax + b = 0
+    - 2차 방정식: ax² + bx + c = 0
 
 - **프롬프트 (Prompts)**
-  - `weather_prompt`: 날씨 정보 조회를 위한 프롬프트 템플릿 제공
+  - `calculator_prompt`: 계산기 사용을 위한 프롬프트 템플릿
+    - 기본 계산기 사용법
+    - 방정식 계산기 사용법
 
 ### 설치 방법
 
@@ -24,74 +32,59 @@
 pip install -r requirements.txt
 ```
 
-2. OpenWeatherMap API 키 설정:
+### 실행 방법
+
+1. 서버 실행:
 ```bash
-# .env 파일 생성
-echo "OPENWEATHER_API_KEY=your_api_key_here" > .env
+python calculator_mcp_server.py
+```
+
+2. 테스트 실행:
+```bash
+python test_calculator.py
 ```
 
 ### Cursor에서 사용하기
 
-1. `cursor-mcp-config.json` 파일을 Cursor의 MCP 설정으로 지정:
+`cursor-mcp-config.json` 파일을 Cursor의 MCP 설정으로 지정:
 ```json
 {
   "mcpServers": {
-    "weather-service": {
+    "calculator-service": {
       "command": "python",
       "args": [
-        "weather_mcp_server.py"
+        "calculator_mcp_server.py"
       ],
-      "cwd": "/path/to/mcp-server-examples",
-      "env": {
-        "OPENWEATHER_API_KEY": "${OPENWEATHER_API_KEY}"
-      }
+      "cwd": "/path/to/mcp-server-examples"
     }
   }
 }
 ```
 
-2. 환경 변수 설정:
-   - `OPENWEATHER_API_KEY` 환경 변수를 시스템에 설정하거나
-   - Cursor의 환경 변수 설정에서 직접 지정
+### 사용 예시
 
-### MCP 서버 사용 예시
-
-1. 리소스 사용:
+1. 기본 계산:
 ```python
-# 서울 날씨 정보 조회
-weather_info = await session.read_resource("weather://Seoul")
-```
-
-2. 도구 사용:
-```python
-# 도쿄 날씨 정보 조회
-weather_data = await session.call_tool(
-    "get_current_weather",
-    arguments={
-        "city": "Tokyo",
-        "country_code": "JP"
-    }
+result = await session.call_tool(
+    "calculate",
+    arguments={"expression": "2 + 2"}
 )
+# 결과: {"result": 4, "expression": "2 + 2", "success": true}
 ```
 
-3. 프롬프트 사용:
+2. 방정식 해결:
 ```python
-# 뉴욕 날씨 프롬프트 생성
-prompt = await session.get_prompt(
-    "weather_prompt",
-    arguments={
-        "city": "New York",
-        "country_code": "US"
-    }
+result = await session.call_tool(
+    "solve_equation",
+    arguments={"a": 1, "b": -5, "c": 6}
 )
+# 결과: {"solution": [3, 2], "equation_type": "quadratic", "success": true}
 ```
 
-### 반환되는 날씨 정보
-
-- 온도 (°C)
-- 습도 (%)
-- 날씨 설명
-- 풍속 (m/s)
+3. 계산 기록 조회:
+```python
+history, _ = await session.read_resource("calculator://history")
+```
 
 ## 라이선스
 
@@ -101,4 +94,3 @@ prompt = await session.get_prompt(
 
 - [Model Context Protocol 문서](https://modelcontextprotocol.io)
 - [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
-- [OpenWeatherMap API](https://openweathermap.org/api)

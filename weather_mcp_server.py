@@ -1,120 +1,87 @@
-from fastapi import FastAPI, WebSocket
-from pydantic import BaseModel
-from typing import Dict, List, Optional
-import json
-import asyncio
-import aiohttp
 import os
 from dotenv import load_dotenv
+import aiohttp
+from mcp.server.fastmcp import FastMCP
+from typing import Dict, Optional
 
 load_dotenv()
 
-app = FastAPI()
-
-# OpenWeatherMap API 키 설정
+# OpenWeatherMap API 설정
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "your_api_key_here")
 BASE_URL = "http://api.openweathermap.org/data/2.5"
 
-class MCPTool(BaseModel):
-    name: str
-    description: str
-    parameters: Dict
+# MCP 서버 인스턴스 생성
+mcp = FastMCP("Weather Service")
 
-class WeatherMCPServer:
-    def __init__(self):
-        self.tools: List[MCPTool] = []
-        
-        # 날씨 조회 도구 등록
-        self.register_tool(
-            MCPTool(
-                name="get_current_weather",
-                description="도시 이름으로 현재 날씨 정보를 조회합니다",
-                parameters={
-                    "type": "object",
-                    "properties": {
-                        "city": {"type": "string", "description": "날씨를 조회할 도시 이름"},
-                        "country_code": {"type": "string", "description": "국가 코드 (예: KR, US)"}
-                    },
-                    "required": ["city"]
-                }
-            )
-        )
+@mcp.resource("weather://{city}")
+async def get_weather_resource(city: str) -> str:
+    """도시의 현재 날씨 정보를 리소스로 제공합니다."""
+    async with aiohttp.ClientSession() as session:
+        params = {
+            "q": city,
+            "appid": OPENWEATHER_API_KEY,
+            "units": "metric"
+        }
+        async with session.get(f"{BASE_URL}/weather", params=params) as response:
+            if response.status == 200:
+                data = await response.json()
+                return f"""
+도시: {city}
+온도: {data['main']['temp']}°C
+습도: {data['main']['humidity']}%
+날씨: {data['weather'][0]['description']}
+풍속: {data['wind']['speed']} m/s
+"""
+            else:
+                return f"날씨 정보를 가져오는데 실패했습니다. 상태 코드: {response.status}"
 
-    def register_tool(self, tool: MCPTool):
-        self.tools.append(tool)
-
-    async def get_weather(self, city: str, country_code: str = None) -> Dict:
-        location = f"{city},{country_code}" if country_code else city
-        async with aiohttp.ClientSession() as session:
-            params = {
-                "q": location,
-                "appid": OPENWEATHER_API_KEY,
-                "units": "metric"
-            }
-            async with session.get(f"{BASE_URL}/weather", params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return {
-                        "temperature": data["main"]["temp"],
-                        "humidity": data["main"]["humidity"],
-                        "description": data["weather"][0]["description"],
-                        "wind_speed": data["wind"]["speed"]
-                    }
-                else:
-                    return {"error": "날씨 정보를 가져오는데 실패했습니다"}
-
-    async def handle_message(self, message: Dict) -> Dict:
-        if message.get("type") == "tool_call":
-            tool_name = message.get("tool", {}).get("name")
-            if tool_name == "get_current_weather":
-                params = message.get("tool", {}).get("parameters", {})
-                city = params.get("city")
-                country_code = params.get("country_code")
-                
-                if not city:
-                    return {
-                        "type": "error",
-                        "message": "도시 이름이 필요합니다"
-                    }
-                
-                weather_data = await self.get_weather(city, country_code)
+@mcp.tool()
+async def get_current_weather(city: str, country_code: Optional[str] = None) -> Dict:
+    """
+    현재 날씨 정보를 조회하는 도구입니다.
+    
+    Args:
+        city: 날씨를 조회할 도시 이름
+        country_code: 국가 코드 (예: KR, US) - 선택사항
+    """
+    location = f"{city},{country_code}" if country_code else city
+    async with aiohttp.ClientSession() as session:
+        params = {
+            "q": location,
+            "appid": OPENWEATHER_API_KEY,
+            "units": "metric"
+        }
+        async with session.get(f"{BASE_URL}/weather", params=params) as response:
+            if response.status == 200:
+                data = await response.json()
                 return {
-                    "type": "tool_response",
-                    "id": message.get("id"),
-                    "result": weather_data
+                    "city": city,
+                    "temperature": data["main"]["temp"],
+                    "humidity": data["main"]["humidity"],
+                    "description": data["weather"][0]["description"],
+                    "wind_speed": data["wind"]["speed"]
                 }
-        return {"type": "error", "message": "지원하지 않는 메시지 타입입니다"}
+            else:
+                return {"error": f"날씨 정보를 가져오는데 실패했습니다. 상태 코드: {response.status}"}
 
-weather_server = WeatherMCPServer()
+@mcp.prompt()
+def weather_prompt(city: str, country_code: Optional[str] = None) -> str:
+    """
+    날씨 정보 조회를 위한 프롬프트 템플릿입니다.
+    
+    Args:
+        city: 날씨를 조회할 도시 이름
+        country_code: 국가 코드 (예: KR, US) - 선택사항
+    """
+    location = f"{city}, {country_code}" if country_code else city
+    return f"""다음 도시의 현재 날씨 정보를 알려주세요:
+도시: {location}
 
-@app.websocket("/mcp")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    try:
-        while True:
-            message = await websocket.receive_text()
-            try:
-                message_data = json.loads(message)
-                response = await weather_server.handle_message(message_data)
-                await websocket.send_json(response)
-            except json.JSONDecodeError:
-                await websocket.send_json({
-                    "type": "error",
-                    "message": "잘못된 JSON 형식입니다"
-                })
-    except Exception as e:
-        print(f"WebSocket 에러: {str(e)}")
-    finally:
-        await websocket.close()
-
-@app.get("/")
-async def root():
-    return {"message": "날씨 MCP 서버가 실행 중입니다"}
-
-@app.get("/tools")
-async def get_tools():
-    return {"tools": [tool.dict() for tool in weather_server.tools]}
+다음 정보를 포함해주세요:
+1. 현재 기온
+2. 습도
+3. 날씨 상태
+4. 풍속"""
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    mcp.run()
